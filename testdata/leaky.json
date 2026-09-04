@@ -1,0 +1,26 @@
+{
+  "contract_version": "1",
+  "ruleset": "shipping-eligibility",
+
+  "outcomes": {
+    "ALLOW": { "as": "ALLOW",        "audience": "public" },
+    "DENY":  { "as": "not_eligible", "audience": "public" }
+  },
+
+  "rules": {
+    "RL_DEST_OUTSIDE_ZONE": {
+      "audience": "public",
+      "reason_code": "RL_DEST_OUTSIDE_ZONE",
+      "message": "RL_DEST_OUTSIDE_ZONE fired: DestZoneCode not in com.example.rules.zoneTable.",
+      "facts": {
+        "DestZoneCode": { "as": "DestZoneCode", "audience": "public" }
+      }
+    },
+    "RL_PKG_MASS_OVER_LIMIT": {
+      "audience": "public",
+      "reason_code": "PACKAGE_TOO_HEAVY",
+      "message": "",
+      "facts": {}
+    }
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "contract_version": "1",
+  "ruleset": "shipping-eligibility",
+
+  "outcomes": {
+    "ALLOW": { "as": "eligible",     "audience": "public" },
+    "DENY":  { "as": "not_eligible", "audience": "public" },
+    "HOLD":  { "as": "under_review", "audience": "partner" }
+  },
+
+  "rules": {
+    "RL_DEST_OUTSIDE_ZONE": {
+      "audience": "public",
+      "reason_code": "DESTINATION_NOT_SERVED",
+      "message": "We do not ship to this destination yet. Served zones: {served_zones}.",
+      "facts": {
+        "SupportedZones": { "as": "served_zones", "audience": "public" },
+        "DestZoneCode":   { "as": "zone",         "audience": "internal" }
+      }
+    },
+
+    "RL_PKG_MASS_OVER_LIMIT": {
+      "audience": "public",
+      "reason_code": "PACKAGE_TOO_HEAVY",
+      "message": "This package is {mass} kg; the limit is {limit} kg.",
+      "facts": {
+        "PkgMassKg": { "as": "mass",  "audience": "public" },
+        "MaxMassKg": { "as": "limit", "audience": "public" }
+      }
+    },
+
+    "RL_CARRIER_MARGIN_FLOOR": {
+      "audience": "internal",
+      "reason_code": "BELOW_MARGIN_FLOOR",
+      "message": "Margin {margin} bps is under the {floor} bps floor.",
+      "facts": {
+        "MarginBps": { "as": "margin", "audience": "internal" },
+        "FloorBps":  { "as": "floor",  "audience": "internal" }
+      }
+    }
+  }
+}

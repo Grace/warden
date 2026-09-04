@@ -1,0 +1,19 @@
+{
+  "ruleset": "shipping-eligibility",
+  "version": "2026.09.1",
+  "outcome": "DENY",
+  "firings": [
+    {
+      "rule": "RL_DEST_OUTSIDE_ZONE",
+      "facts": { "DestZoneCode": "Z9", "SupportedZones": "Z1-Z4" }
+    },
+    {
+      "rule": "RL_PKG_MASS_OVER_LIMIT",
+      "facts": { "PkgMassKg": 34.5, "MaxMassKg": 30 }
+    },
+    {
+      "rule": "RL_CARRIER_MARGIN_FLOOR",
+      "facts": { "MarginBps": 40, "FloorBps": 150 }
+    }
+  ]
+}
