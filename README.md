@@ -169,4 +169,16 @@ HTTP surface, contract versioning across more than one `contract_version`
 string, and adapters that read a given engine's native trace format instead of
 the normalized JSON above.
 
-MIT licensed.
+## Contributing and contact
+
+Issues and pull requests welcome, and [GitHub Discussions](https://github.com/Grace/verdict/discussions)
+is the right place for questions and design arguments.
+
+**Using this for something real?** I would like to hear about it — what you
+pointed it at, what broke, and what you needed that is not there.
+
+**hello@gracefulco.de**
+
+## License
+
+MIT.

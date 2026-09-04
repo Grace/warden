@@ -18,11 +18,30 @@ declared.
   verdict project -contract C -trace T [-audience public]   translate a decision
   verdict validate -contract C                              check the contract loads
   verdict lint -contract C                                  hunt leaked engine vocabulary
+  verdict version                                           print version and build
 
 Audiences are internal, partner and public. A term is visible to a viewer when
 its declared audience is at least as wide as the viewer's, so public terms are
 visible to everyone and internal terms only to internal callers.
 `
+
+// Stamped at build time with -ldflags; see .goreleaser.yaml.
+var (
+	version = "dev"
+	commit  = ""
+	date    = ""
+)
+
+func versionString() string {
+	out := "verdict " + version
+	switch {
+	case commit != "" && date != "":
+		out += " (" + commit + ", " + date + ")"
+	case commit != "":
+		out += " (" + commit + ")"
+	}
+	return out
+}
 
 func main() {
 	if len(os.Args) < 2 {
@@ -46,6 +65,9 @@ func main() {
 	case "lint":
 		_ = fs.Parse(args)
 		os.Exit(runLint(*contract))
+	case "version":
+		fmt.Println(versionString())
+		os.Exit(0)
 	case "-h", "--help", "help":
 		fmt.Print(usage)
 		os.Exit(0)
