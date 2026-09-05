@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 const usage = `warden — an anti-corruption layer for rules engines.
@@ -20,6 +21,7 @@ declared.
   warden validate -contract C                              check the contract loads
   warden lint -contract C                                  hunt leaked engine vocabulary
   warden test -contract C features/*.feature               run Gherkin scenarios
+  warden oracle -contract C                                 what an adversary learns per query
   warden steps                                             print the step vocabulary
   warden version                                           print version and build
 
@@ -71,6 +73,9 @@ func main() {
 	case "test":
 		_ = fs.Parse(args)
 		os.Exit(runTest(*contract, fs.Args()))
+	case "oracle":
+		_ = fs.Parse(args)
+		os.Exit(runOracle(*contract))
 	case "steps":
 		fmt.Print(stepVocabulary)
 		os.Exit(0)
@@ -185,5 +190,28 @@ func runTest(contractPath string, patterns []string) int {
 		return 1
 	}
 	fmt.Printf("%d scenario(s) passed\n", passed)
+	return 0
+}
+
+// runOracle reports the disclosure surface at each audience.
+func runOracle(contractPath string) int {
+	if contractPath == "" {
+		return die(fmt.Errorf("-contract is required"))
+	}
+	c, err := LoadContract(contractPath)
+	if err != nil {
+		return die(err)
+	}
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "%s — what each audience can learn from one decision\n\n", c.Ruleset)
+	for _, aud := range []Audience{Public, Partner, Internal} {
+		a := AnalyseOracle(c, aud)
+		sortObservations(a.Observations)
+		a.Report(&b)
+	}
+	b.WriteString("These are observations, not defects. Publishing a limit is good service\n")
+	b.WriteString("in one domain and a gift in another, and only you know which you are in.\n")
+	fmt.Print(b.String())
 	return 0
 }

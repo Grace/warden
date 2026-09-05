@@ -241,6 +241,52 @@ Failures say what is actually there, not only that expectations were missed:
 Refusal is assertable too — `Then publishing is refused` — so a contract that
 fails closed can prove it does.
 
+## What an adversary learns per query
+
+Lint asks whether the contract leaks the engine's vocabulary. There is a
+different question it cannot answer: given a contract that leaks nothing, how
+much does an attacker learn from each attempt?
+
+```
+$ warden lint -contract payment-fraud.json
+clean  payment-fraud — no engine vocabulary in published terms
+```
+
+```
+$ warden oracle -contract payment-fraud.json
+payment-fraud — what each audience can learn from one decision
+
+public
+  2 outcome(s), 2 reason(s) — 8 distinguishable answers per query
+
+  VELOCITY_LIMIT_EXCEEDED    names the mechanism, not the outcome
+                             "VELOCITY" appears in the published code (rule RL_VEL_24H)
+                             a code saying what you measured tells an attacker which
+                             dimension to vary; one saying what happened tells them
+                             only that it did
+
+  VELOCITY_LIMIT_EXCEEDED    publishes a boundary as "limit"
+                             engine fact "MaxAttempts", published as "limit"
+                             the value you observed says what you saw; the boundary
+                             says where to stop
+```
+
+The contract is clean by every measure lint has, and it still tells a fraudster
+which dimension to vary and where the edge is. `DECLINED` would have told them
+that it happened and nothing else.
+
+**The count is the part people underestimate.** Reasons come back as a set
+rather than a choice, so the distinguishable answers are the subsets — two
+outcomes and two reasons is eight states, and each additional public reason code
+doubles it. "One more reason, for support" is never a small change to an oracle's
+bandwidth.
+
+**These are observations, not defects.** Telling a customer their parcel exceeds
+a 30 kg limit is good service; telling a fraudster the velocity window is 24
+hours is not. The difference is the domain, which this tool cannot know — so it
+reports the surface with the reasoning attached and leaves the judgement with
+whoever knows what is being defended. `warden oracle` always exits zero.
+
 ## Use
 
 ```sh
@@ -251,6 +297,7 @@ warden lint     -contract shipping.json                     # any engine vocabul
 warden project  -contract shipping.json -trace d.json \
                  -audience public                            # translate a decision
 warden test     -contract shipping.json features/*.feature  # run scenarios
+warden oracle   -contract shipping.json                     # the disclosure surface
 warden steps                                                # the step vocabulary
 ```
 
