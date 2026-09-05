@@ -61,7 +61,7 @@ func Lint(c *Contract) []Finding {
 
 		// A fact republished under its engine name is a rename that never
 		// happened — the contract cannot survive the engine being refactored.
-		for name, f := range r.Facts {
+		for name, f := range r.terms() {
 			if f.Audience != Internal && f.As == name {
 				out = append(out, Finding{id,
 					fmt.Sprintf("fact %q is published under its engine name", name),
@@ -72,6 +72,24 @@ func Lint(c *Contract) []Finding {
 					fmt.Sprintf("message mentions engine fact name %q", name),
 					"use the {placeholder} form so the published name is the one in `as`"})
 			}
+		}
+
+		// The finding the fact/parameter split exists to make statable.
+		//
+		// Measurement puts essentially all of the disclosure cost here: a
+		// requester who did not supply a value and cannot observe it has no
+		// way to find it by resubmitting, so the notice is the only route.
+		// Publishing a *fact* saves them a constant factor; publishing a
+		// *parameter* is the whole disclosure.
+		for name, pm := range r.Parameters {
+			if pm.Audience == Internal {
+				continue
+			}
+			out = append(out, Finding{id,
+				fmt.Sprintf("parameter %q is published to %s as %q", name, pm.Audience, pm.As),
+				"a policy threshold the requester cannot set or observe; publishing it " +
+					"is the only way they learn it. Say which side of it they fell on, " +
+					"not where it sits"})
 		}
 
 		// A published reason with no message is a code with no meaning. The

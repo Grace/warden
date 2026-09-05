@@ -62,11 +62,40 @@ type TermMapping struct {
 }
 
 // RuleMapping translates one rule firing into a consumer-facing reason.
+//
+// Facts and Parameters are both engine terms and both render into the message,
+// and they are separated because they cost different amounts to publish.
+//
+// A fact is about the case: a value the requester supplied, or one they can
+// observe. Republishing it tells them something they could have worked out —
+// measurably, a constant factor of about two in search effort.
+//
+// A parameter is about the policy: a threshold, a floor, a tier boundary. The
+// requester did not supply it and usually cannot see it, which means no amount
+// of resubmission finds it. Publishing one is the only way they get it, and
+// under measurement that is where essentially all of the disclosure cost sits.
+//
+// Keeping them in one map made the distinction unstateable, so lint had to
+// guess it from words like "limit" and "floor". Declaring it is better than
+// inferring it.
 type RuleMapping struct {
 	Audience   Audience               `json:"audience"`
 	ReasonCode string                 `json:"reason_code"`
 	Message    string                 `json:"message"`
 	Facts      map[string]TermMapping `json:"facts"`
+	Parameters map[string]TermMapping `json:"parameters,omitempty"`
+}
+
+// terms is every publishable engine term for a rule, whatever its provenance.
+func (r RuleMapping) terms() map[string]TermMapping {
+	out := make(map[string]TermMapping, len(r.Facts)+len(r.Parameters))
+	for k, v := range r.Facts {
+		out[k] = v
+	}
+	for k, v := range r.Parameters {
+		out[k] = v
+	}
+	return out
 }
 
 var placeholder = regexp.MustCompile(`\{([a-z0-9_]+)\}`)
@@ -125,37 +154,46 @@ func (c *Contract) validate() error {
 }
 
 func (r RuleMapping) validate(id string) error {
+	for name := range r.Parameters {
+		if _, dup := r.Facts[name]; dup {
+			return fmt.Errorf("rule %q: %q is declared as both a fact and a parameter; "+
+				"it is one or the other, and which decides what publishing it costs", id, name)
+		}
+	}
+
 	if !r.Audience.valid() {
 		return fmt.Errorf("rule %q: `audience` is required", id)
 	}
 	if r.ReasonCode == "" {
 		return fmt.Errorf("rule %q: `reason_code` is required", id)
 	}
-	for fact, f := range r.Facts {
-		if f.As == "" {
-			return fmt.Errorf("rule %q fact %q: `as` is required", id, fact)
-		}
-		if !f.Audience.valid() {
-			return fmt.Errorf("rule %q fact %q: `audience` is required", id, fact)
-		}
-		// A fact cannot travel further than the reason that carries it.
-		if audienceRank[f.Audience] > audienceRank[r.Audience] {
-			return fmt.Errorf(
-				"rule %q fact %q: declared %s but its rule is %s — a fact cannot "+
-					"reach an audience the reason carrying it cannot",
-				id, fact, f.Audience, r.Audience)
+	for kind, set := range map[string]map[string]TermMapping{"fact": r.Facts, "parameter": r.Parameters} {
+		for name, f := range set {
+			if f.As == "" {
+				return fmt.Errorf("rule %q %s %q: `as` is required", id, kind, name)
+			}
+			if !f.Audience.valid() {
+				return fmt.Errorf("rule %q %s %q: `audience` is required", id, kind, name)
+			}
+			// A term cannot travel further than the reason that carries it.
+			if audienceRank[f.Audience] > audienceRank[r.Audience] {
+				return fmt.Errorf(
+					"rule %q %s %q: declared %s but its rule is %s — a term cannot "+
+						"reach an audience the reason carrying it cannot",
+					id, kind, name, f.Audience, r.Audience)
+			}
 		}
 	}
 
-	// Every placeholder must resolve to a declared fact, or the message would
+	// Every placeholder must resolve to a declared term, or the message would
 	// render with a hole in it for whoever is reading.
 	published := map[string]bool{}
-	for _, f := range r.Facts {
+	for _, f := range r.terms() {
 		published[f.As] = true
 	}
 	for _, m := range placeholder.FindAllStringSubmatch(r.Message, -1) {
 		if !published[m[1]] {
-			return fmt.Errorf("rule %q: message references {%s}, which no fact declares", id, m[1])
+			return fmt.Errorf("rule %q: message references {%s}, which no fact or parameter declares", id, m[1])
 		}
 	}
 	return nil

@@ -90,16 +90,31 @@ func AnalyseOracle(c *Contract, viewer Audience) *Analysis {
 				Detail: trunc(r.Message),
 			})
 		}
+		for name, pm := range r.Parameters {
+			if !pm.Audience.visibleTo(viewer) {
+				continue
+			}
+			a.Observations = append(a.Observations, Observation{
+				Where: r.ReasonCode,
+				What:  fmt.Sprintf("publishes the policy parameter %q", pm.As),
+				Why: "declared a parameter rather than a fact: the requester did not " +
+					"supply it and cannot observe it, so this notice is the only way they get it",
+				Detail: fmt.Sprintf("engine term %q, published as %q to %s", name, pm.As, pm.Audience),
+			})
+		}
 		for fact, f := range r.Facts {
 			if !f.Audience.visibleTo(viewer) {
 				continue
 			}
+			// Heuristic, and now a fallback: a fact whose published name reads
+			// like a boundary was probably a parameter nobody declared.
 			if w := containsAny(strings.ToLower(f.As), boundaryWords); w != "" {
 				a.Observations = append(a.Observations, Observation{
-					Where:  r.ReasonCode,
-					What:   fmt.Sprintf("publishes a boundary as %q", f.As),
-					Why:    "the value you observed says what you saw; the boundary says where to stop",
-					Detail: fmt.Sprintf("engine fact %q, published as %q (matched %q)", fact, f.As, w),
+					Where: r.ReasonCode,
+					What:  fmt.Sprintf("publishes a boundary as %q", f.As),
+					Why:   "the value you observed says what you saw; the boundary says where to stop",
+					Detail: fmt.Sprintf("engine fact %q, published as %q (matched %q) — "+
+						"if this is a policy threshold, declare it under `parameters`", fact, f.As, w),
 				})
 			}
 		}
@@ -120,15 +135,28 @@ func AnalyseOracle(c *Contract, viewer Audience) *Analysis {
 	return a
 }
 
+// containsAny matches on whole words rather than substrings.
+//
+// It used to use strings.Contains, which flagged LIMITED_CREDIT_EXPERIENCE
+// because "LIMITED" contains "LIMIT". A lint that cries wolf on a correct
+// contract teaches people to skip its output, which costs more than the
+// finding was worth.
 func containsAny(s string, words []string) string {
-	up := strings.ToUpper(s)
+	fields := wordSplit.Split(strings.ToUpper(s), -1)
 	for _, w := range words {
-		if strings.Contains(up, strings.ToUpper(w)) {
-			return w
+		want := strings.ToUpper(w)
+		for _, f := range fields {
+			if f == want {
+				return w
+			}
 		}
 	}
 	return ""
 }
+
+// wordSplit breaks on the separators these identifiers actually use, so
+// LIMITED is one word and not a hit for LIMIT.
+var wordSplit = regexp.MustCompile(`[^A-Z0-9]+`)
 
 // Report writes the analysis for one audience.
 func (a *Analysis) Report(b *strings.Builder) {

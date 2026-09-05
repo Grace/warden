@@ -257,3 +257,114 @@ func TestScalarRefusesStructures(t *testing.T) {
 		t.Errorf("integral floats should render without a decimal, got %q %v", got, err)
 	}
 }
+
+// contractWith builds a minimal contract around one rule, for the
+// fact/parameter tests.
+func contractWith(t *testing.T, rule string) *Contract {
+	t.Helper()
+	body := `{"contract_version":"1","ruleset":"r",
+	  "outcomes":{"DENY":{"as":"not_eligible","audience":"public"}},
+	  "rules":{"RL_X":` + rule + `}}`
+	path := t.TempDir() + "/c.json"
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	c, err := LoadContract(path)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	return c
+}
+
+func TestParameterCannotAlsoBeAFact(t *testing.T) {
+	body := `{"contract_version":"1","ruleset":"r",
+	  "outcomes":{"DENY":{"as":"no","audience":"public"}},
+	  "rules":{"RL_X":{"audience":"public","reason_code":"X",
+	    "facts":{"MaxKg":{"as":"limit","audience":"public"}},
+	    "parameters":{"MaxKg":{"as":"cap","audience":"internal"}}}}}`
+	path := t.TempDir() + "/c.json"
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	_, err := LoadContract(path)
+	if err == nil || !strings.Contains(err.Error(), "both a fact and a parameter") {
+		t.Fatalf("want a provenance conflict, got %v", err)
+	}
+}
+
+func TestParametersRenderIntoMessages(t *testing.T) {
+	// A parameter is still a term the message may reference; the split is about
+	// what publishing it costs, not about whether it can be said at all.
+	c := contractWith(t, `{"audience":"internal","reason_code":"TOO_HEAVY",
+	  "message":"This is {mass} kg; the limit is {limit} kg.",
+	  "facts":{"PkgKg":{"as":"mass","audience":"internal"}},
+	  "parameters":{"MaxKg":{"as":"limit","audience":"internal"}}}`)
+	if _, ok := c.Rules["RL_X"]; !ok {
+		t.Fatal("rule missing")
+	}
+	if got := len(c.Rules["RL_X"].terms()); got != 2 {
+		t.Errorf("terms() should carry facts and parameters together, got %d", got)
+	}
+}
+
+func TestParameterCannotOutrankItsRule(t *testing.T) {
+	body := `{"contract_version":"1","ruleset":"r",
+	  "outcomes":{"DENY":{"as":"no","audience":"public"}},
+	  "rules":{"RL_X":{"audience":"internal","reason_code":"X",
+	    "parameters":{"MaxKg":{"as":"limit","audience":"public"}}}}}`
+	path := t.TempDir() + "/c.json"
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LoadContract(path); err == nil {
+		t.Fatal("a parameter must not outrank the reason carrying it")
+	}
+}
+
+func TestLintFlagsPublishedParameters(t *testing.T) {
+	// The finding the split exists to make statable.
+	c := contractWith(t, `{"audience":"public","reason_code":"TOO_HEAVY",
+	  "message":"The limit is {limit} kg.",
+	  "parameters":{"MaxKg":{"as":"limit","audience":"public"}}}`)
+	var found bool
+	for _, f := range Lint(c) {
+		if strings.Contains(f.Problem, `parameter "MaxKg" is published`) {
+			found = true
+			if !strings.Contains(f.Detail, "cannot set or observe") {
+				t.Errorf("finding should say why it is expensive: %q", f.Detail)
+			}
+		}
+	}
+	if !found {
+		t.Errorf("a public parameter must be flagged; findings were %+v", Lint(c))
+	}
+}
+
+func TestLintIgnoresInternalParameters(t *testing.T) {
+	c := contractWith(t, `{"audience":"public","reason_code":"TOO_HEAVY",
+	  "message":"Too heavy.",
+	  "parameters":{"MaxKg":{"as":"limit","audience":"internal"}}}`)
+	for _, f := range Lint(c) {
+		if strings.Contains(f.Problem, "parameter") {
+			t.Errorf("an internal parameter is the correct configuration, not a finding: %+v", f)
+		}
+	}
+}
+
+func TestOracleNamesPublishedParameters(t *testing.T) {
+	// Declared provenance, not a wordlist: this parameter is published as
+	// "ceiling_value", which matches no boundary word.
+	c := contractWith(t, `{"audience":"public","reason_code":"TOO_HEAVY",
+	  "message":"Declined.",
+	  "parameters":{"MaxKg":{"as":"ceiling_value","audience":"public"}}}`)
+	a := AnalyseOracle(c, Public)
+	var found bool
+	for _, o := range a.Observations {
+		if strings.Contains(o.What, "policy parameter") {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("a published parameter should be an oracle observation regardless of its name: %+v", a.Observations)
+	}
+}

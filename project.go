@@ -112,7 +112,7 @@ func Project(t *Trace, c *Contract, viewer Audience) (*Decision, error) {
 		}
 
 		facts := map[string]string{}
-		for name, fm := range rm.Facts {
+		for name, fm := range rm.terms() {
 			if !fm.Audience.visibleTo(viewer) {
 				continue
 			}
