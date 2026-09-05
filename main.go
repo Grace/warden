@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 )
 
 const usage = `verdict — an anti-corruption layer for rules engines.
@@ -18,6 +19,8 @@ declared.
   verdict project -contract C -trace T [-audience public]   translate a decision
   verdict validate -contract C                              check the contract loads
   verdict lint -contract C                                  hunt leaked engine vocabulary
+  verdict test -contract C features/*.feature               run Gherkin scenarios
+  verdict steps                                             print the step vocabulary
   verdict version                                           print version and build
 
 Audiences are internal, partner and public. A term is visible to a viewer when
@@ -65,6 +68,12 @@ func main() {
 	case "lint":
 		_ = fs.Parse(args)
 		os.Exit(runLint(*contract))
+	case "test":
+		_ = fs.Parse(args)
+		os.Exit(runTest(*contract, fs.Args()))
+	case "steps":
+		fmt.Print(stepVocabulary)
+		os.Exit(0)
 	case "version":
 		fmt.Println(versionString())
 		os.Exit(0)
@@ -137,4 +146,44 @@ func runLint(contractPath string) int {
 		fmt.Println(f)
 	}
 	return 1
+}
+
+// runTest executes Gherkin scenarios against a contract.
+//
+// This is how someone who cannot read a ruleset checks that it says what they
+// meant: examples they can read, executed against the real projection.
+func runTest(contractPath string, patterns []string) int {
+	if contractPath == "" {
+		return die(fmt.Errorf("-contract is required"))
+	}
+	if len(patterns) == 0 {
+		return die(fmt.Errorf("no .feature files given"))
+	}
+	c, err := LoadContract(contractPath)
+	if err != nil {
+		return die(err)
+	}
+
+	var paths []string
+	for _, p := range patterns {
+		matches, err := filepath.Glob(p)
+		if err != nil {
+			return die(err)
+		}
+		if len(matches) == 0 {
+			return die(fmt.Errorf("no files match %q", p))
+		}
+		paths = append(paths, matches...)
+	}
+
+	passed, failed, err := RunFeatures(os.Stdout, c, paths)
+	if err != nil {
+		return die(err)
+	}
+	if failed > 0 {
+		fmt.Printf("%d passed, %d FAILED\n", passed, failed)
+		return 1
+	}
+	fmt.Printf("%d scenario(s) passed\n", passed)
+	return 0
 }

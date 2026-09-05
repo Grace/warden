@@ -148,6 +148,66 @@ LEAKS  shipping-eligibility — 8 finding(s)
 It exits non-zero, so it belongs in CI next to your tests. The leak you are
 trying to prevent is not usually a missing mapping — it's a lazy one.
 
+## Testing a contract in business language
+
+Projection and lint check the contract against itself. Neither can tell you
+whether it says what someone *meant* — and the person who knows that usually
+cannot read the ruleset, which is why they are using a contract in the first
+place.
+
+So scenarios, in Gherkin, executed against the real projection:
+
+```gherkin
+Feature: shipping eligibility, as customers and staff see it
+
+  Scenario: customers are never told about our margins
+    Given the ruleset "shipping-eligibility"
+    And the outcome "DENY"
+    And rule "RL_PKG_MASS_OVER_LIMIT" fires with:
+      | PkgMassKg | 34.5 |
+      | MaxMassKg | 30   |
+    And rule "RL_CARRIER_MARGIN_FLOOR" fires with:
+      | MarginBps | 40  |
+      | FloorBps  | 150 |
+    When published to "public"
+    Then reason "BELOW_MARGIN_FLOOR" is absent
+    And there is 1 reason
+```
+
+```
+$ verdict test -contract shipping.json features/*.feature
+shipping eligibility, as customers and staff see it
+  ok    a package over the mass limit says so, in units and numbers
+  ok    customers are never told about our margins
+  ok    staff see the margin rule that customers do not
+  …
+7 scenario(s) passed
+```
+
+**A scenario has one foot on each side of the boundary, and that is the point.**
+The `Given` steps describe an engine trace in the engine's vocabulary, written
+by whoever owns the ruleset. The `Then` steps describe what one audience sees,
+in contract vocabulary, read by whoever owns the contract. The scenario is the
+boundary, written down — which also means it does not break when someone
+refactors the ruleset, since it asserts on published terms.
+
+**No step definitions to write.** Standard Cucumber asks for step definitions in
+code, which defeats the purpose here: the person who needs to read these is the
+one who cannot read Go. The vocabulary is fixed and wired in — `verdict steps`
+prints it — and an unrecognised step is an error rather than a skip, because a
+scenario that quietly asserts nothing is worse than none at all.
+
+Failures say what is actually there, not only that expectations were missed:
+
+```
+  FAIL  the analyst expected different wording
+        shipping.feature:12  And reason "PACKAGE_TOO_HEAVY" has fact "weight" as "34.5"
+          reason "PACKAGE_TOO_HEAVY" has no published fact "weight"; it has "limit", "mass"
+```
+
+Refusal is assertable too — `Then publishing is refused` — so a contract that
+fails closed can prove it does.
+
 ## Use
 
 ```sh
@@ -157,6 +217,8 @@ verdict validate -contract shipping.json                     # does it load?
 verdict lint     -contract shipping.json                     # any engine vocabulary left?
 verdict project  -contract shipping.json -trace d.json \
                  -audience public                            # translate a decision
+verdict test     -contract shipping.json features/*.feature  # run scenarios
+verdict steps                                                # the step vocabulary
 ```
 
 Single static binary, stdlib only, no runtime dependencies.
