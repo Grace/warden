@@ -116,6 +116,7 @@ func attack(w *world, p policy, budget int) knowledge {
 					continue
 				}
 				r := w.rules[fired]
+				knew := k.discovered[fired]
 
 				switch p {
 				case full:
@@ -150,6 +151,15 @@ func attack(w *world, p policy, budget int) knowledge {
 							base[r.feature] = scale
 						}
 					}
+					progressed = true
+				}
+				// Learning that an attested rule exists is progress too, even
+				// though there is nothing to bisect. Without this the reason
+				// adversary quits the sweep as soon as the rules it can pin
+				// run out, and its discovered column is an undercount. Keyed
+				// on *newly* discovered: an already-known attested rule keeps
+				// firing, and counting that as progress would never terminate.
+				if !knew && k.discovered[fired] {
 					progressed = true
 				}
 			}
