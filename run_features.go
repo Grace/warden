@@ -78,7 +78,7 @@ func RunFeatures(w io.Writer, c *Contract, paths []string) (passed, failed int, 
 	return passed, failed, nil
 }
 
-const stepVocabulary = `Steps verdict understands. The vocabulary is closed: an unrecognised step is
+const stepVocabulary = `Steps warden understands. The vocabulary is closed: an unrecognised step is
 an error, because a scenario that quietly asserts nothing is worse than none.
 
 Setting up an engine trace — the engine's vocabulary, written by whoever owns

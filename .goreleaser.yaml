@@ -5,9 +5,9 @@ before:
     - go mod tidy
 
 builds:
-  - id: verdict
+  - id: warden
     main: .
-    binary: verdict
+    binary: warden
     env: [CGO_ENABLED=0]
     flags: [-trimpath]
     ldflags:

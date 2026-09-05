@@ -1,22 +1,55 @@
-# verdict
+# warden
 
-**An anti-corruption layer for rules engines.**
+**A guard between a rules engine and everyone else.**
 
-A rules engine answers in its own vocabulary. Ask it why an application was
-declined and you get `RL_DEST_OUTSIDE_ZONE`, a working-memory fact called
-`DestZoneCode`, and an outcome token of `DENY`.
+It decides what may cross the boundary and in what vocabulary — so a declined
+transaction does not become an oracle a fraudster can query.
 
-Hand that to anyone outside the engine — an internal tool, a partner, a
-customer-facing screen — and three things happen. They couple to names you can
-no longer rename. They see facts that were never meant to leave. And the moment
-someone refactors a ruleset, every consumer breaks at once.
+## The problem
 
-`verdict` sits between the engine and everyone else. It translates a decision
-into a published contract, scoped to who is asking, and refuses to emit anything
-the contract has not explicitly declared.
+A rules engine answers in its own vocabulary. Ask why a transaction was declined
+and you get `RL_VELOCITY_24H_EXCEEDED`, a working-memory fact called
+`TxnCountWindow`, and an outcome token of `DENY`.
+
+Hand that to anyone outside the engine and three things go wrong, in increasing
+order of how much they cost you.
+
+**Consumers couple to names you can no longer change.** The moment someone
+refactors a ruleset, every caller breaks at once.
+
+**Facts leak that were never meant to leave.** The margin floor that priced the
+decision, the internal risk tier, the threshold itself.
+
+**And in fraud, a decline reason is a free query.** This is the expensive one.
+An attacker who can submit transactions and read why they failed is running an
+*oracle attack* — the same shape as a padding oracle, one bit at a time. Tell
+them `VELOCITY_LIMIT` and they binary-search your window. Tell them
+`not_eligible` and they learn nothing. The difference between those two answers
+is worth more than the rest of this tool combined.
+
+## What it does
+
+`warden` sits at that boundary. It translates a decision into a published
+contract, scoped to who is asking, and refuses to emit anything the contract has
+not explicitly declared.
+
+The shape is a **guard** in the cross-domain sense: a controlled interface
+between a trusted side and an untrusted one, deciding what crosses and in what
+form. It is not an accredited cross-domain solution and does not claim to be —
+those pass NCDSMO lab assessments. But the model is the same, and so is the
+discipline: **complete mediation** (nothing bypasses the mapping, because the
+mapping is data rather than code scattered across response objects) and a
+**reference monitor** small enough to actually read, which is a claim most
+things in this position cannot make.
+
+If you prefer a less classified analogy: it is an **OBD port for your rules
+engine**. Standardised trouble codes that stay stable while the engine behind
+them changes completely, with tiered access — generic codes any scanner reads,
+manufacturer-enhanced codes needing a dealer tool. That tiering is
+`public` / `partner` / `internal`.
 
 ```
-$ verdict project -contract shipping.json -trace decision.json -audience public
+$ warden project -contract shipping.json -trace decision.json -audience public
 {
   "contract_version": "1",
   "outcome": "not_eligible",
@@ -57,7 +90,7 @@ analysts edit.
 
 ## Engine-agnostic
 
-`verdict` never talks to an engine. It consumes a decision trace as JSON:
+`warden` never talks to an engine. It consumes a decision trace as JSON:
 
 ```json
 {
@@ -127,10 +160,10 @@ production.
 
 Projection can only refuse terms the contract never declared. It cannot see a
 term that *was* declared — but declared to a string that still carries the
-engine's names inside it. `verdict lint` catches that:
+engine's names inside it. `warden lint` catches that:
 
 ```
-$ verdict lint -contract leaky.json
+$ warden lint -contract leaky.json
 LEAKS  shipping-eligibility — 8 finding(s)
 
   RL_DEST_OUTSIDE_ZONE         reason_code is the engine rule id
@@ -175,7 +208,7 @@ Feature: shipping eligibility, as customers and staff see it
 ```
 
 ```
-$ verdict test -contract shipping.json features/*.feature
+$ warden test -contract shipping.json features/*.feature
 shipping eligibility, as customers and staff see it
   ok    a package over the mass limit says so, in units and numbers
   ok    customers are never told about our margins
@@ -193,7 +226,7 @@ refactors the ruleset, since it asserts on published terms.
 
 **No step definitions to write.** Standard Cucumber asks for step definitions in
 code, which defeats the purpose here: the person who needs to read these is the
-one who cannot read Go. The vocabulary is fixed and wired in — `verdict steps`
+one who cannot read Go. The vocabulary is fixed and wired in — `warden steps`
 prints it — and an unrecognised step is an error rather than a skip, because a
 scenario that quietly asserts nothing is worse than none at all.
 
@@ -211,14 +244,14 @@ fails closed can prove it does.
 ## Use
 
 ```sh
-go install github.com/Grace/verdict@latest
+go install github.com/Grace/warden@latest
 
-verdict validate -contract shipping.json                     # does it load?
-verdict lint     -contract shipping.json                     # any engine vocabulary left?
-verdict project  -contract shipping.json -trace d.json \
+warden validate -contract shipping.json                     # does it load?
+warden lint     -contract shipping.json                     # any engine vocabulary left?
+warden project  -contract shipping.json -trace d.json \
                  -audience public                            # translate a decision
-verdict test     -contract shipping.json features/*.feature  # run scenarios
-verdict steps                                                # the step vocabulary
+warden test     -contract shipping.json features/*.feature  # run scenarios
+warden steps                                                # the step vocabulary
 ```
 
 Single static binary, stdlib only, no runtime dependencies.
@@ -233,7 +266,7 @@ the normalized JSON above.
 
 ## Contributing and contact
 
-Issues and pull requests welcome, and [GitHub Discussions](https://github.com/Grace/verdict/discussions)
+Issues and pull requests welcome, and [GitHub Discussions](https://github.com/Grace/warden/discussions)
 is the right place for questions and design arguments.
 
 **Using this for something real?** I would like to hear about it — what you

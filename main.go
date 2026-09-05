@@ -8,20 +8,20 @@ import (
 	"path/filepath"
 )
 
-const usage = `verdict — an anti-corruption layer for rules engines.
+const usage = `warden — an anti-corruption layer for rules engines.
 
 A rules engine answers in its own vocabulary: rule ids, fact names, internal
 outcome tokens. Handing that to anyone outside the engine couples them to names
-you then cannot change. verdict translates a decision into a published contract,
+you then cannot change. warden translates a decision into a published contract,
 scoped to who is asking, and refuses to emit anything the contract has not
 declared.
 
-  verdict project -contract C -trace T [-audience public]   translate a decision
-  verdict validate -contract C                              check the contract loads
-  verdict lint -contract C                                  hunt leaked engine vocabulary
-  verdict test -contract C features/*.feature               run Gherkin scenarios
-  verdict steps                                             print the step vocabulary
-  verdict version                                           print version and build
+  warden project -contract C -trace T [-audience public]   translate a decision
+  warden validate -contract C                              check the contract loads
+  warden lint -contract C                                  hunt leaked engine vocabulary
+  warden test -contract C features/*.feature               run Gherkin scenarios
+  warden steps                                             print the step vocabulary
+  warden version                                           print version and build
 
 Audiences are internal, partner and public. A term is visible to a viewer when
 its declared audience is at least as wide as the viewer's, so public terms are
@@ -36,7 +36,7 @@ var (
 )
 
 func versionString() string {
-	out := "verdict " + version
+	out := "warden " + version
 	switch {
 	case commit != "" && date != "":
 		out += " (" + commit + ", " + date + ")"

@@ -166,7 +166,7 @@ func (s *Scenario) step(raw string, line int) error {
 		})
 	}
 
-	return fmt.Errorf("unrecognised step: %q\n    run `verdict steps` for the vocabulary", raw)
+	return fmt.Errorf("unrecognised step: %q\n    run `warden steps` for the vocabulary", raw)
 }
 
 func (s *Scenario) assert(line int, text string, fn func(*Decision, error) error) error {
