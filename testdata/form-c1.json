@@ -1,0 +1,132 @@
+{
+  "contract_version": "1",
+  "ruleset": "adverse-action-form-c1",
+
+  "outcomes": {
+    "APPROVE": { "as": "approved",              "audience": "public" },
+    "DENY":    { "as": "adverse_action_taken",  "audience": "public" },
+    "COUNTER": { "as": "counteroffer",          "audience": "public" }
+  },
+
+  "rules": {
+    "RL_APPLICATION_INCOMPLETE": {
+      "audience": "public", "reason_code": "CREDIT_APPLICATION_INCOMPLETE",
+      "message": "Your application was incomplete."
+    },
+    "RL_REFERENCES_TOO_FEW": {
+      "audience": "public", "reason_code": "INSUFFICIENT_CREDIT_REFERENCES",
+      "message": "You provided {given} credit references.",
+      "facts":      { "RefCount":    { "as": "given",    "audience": "public"   } },
+      "parameters": { "MinRefCount": { "as": "required", "audience": "internal" } }
+    },
+    "RL_REFERENCES_UNACCEPTABLE_TYPE": {
+      "audience": "public", "reason_code": "UNACCEPTABLE_TYPE_OF_CREDIT_REFERENCES",
+      "message": "The type of credit references you provided is not one we can use."
+    },
+    "RL_REFERENCES_UNVERIFIABLE": {
+      "audience": "public", "reason_code": "UNABLE_TO_VERIFY_CREDIT_REFERENCES",
+      "message": "We could not verify your credit references."
+    },
+    "RL_EMPLOYMENT_IRREGULAR": {
+      "audience": "public", "reason_code": "TEMPORARY_OR_IRREGULAR_EMPLOYMENT",
+      "message": "Your employment is temporary or irregular."
+    },
+    "RL_EMPLOYMENT_UNVERIFIABLE": {
+      "audience": "public", "reason_code": "UNABLE_TO_VERIFY_EMPLOYMENT",
+      "message": "We could not verify your employment."
+    },
+    "RL_EMPLOYMENT_TENURE": {
+      "audience": "public", "reason_code": "LENGTH_OF_EMPLOYMENT",
+      "message": "You have been with your current employer {months} months.",
+      "facts":      { "EmployMonths":    { "as": "months",   "audience": "public"   } },
+      "parameters": { "MinEmployMonths": { "as": "required", "audience": "internal" } }
+    },
+    "RL_INCOME_INSUFFICIENT": {
+      "audience": "public", "reason_code": "INCOME_INSUFFICIENT_FOR_AMOUNT_REQUESTED",
+      "message": "Your stated income of {income} does not support the {requested} you asked for.",
+      "facts": {
+        "StatedIncome":  { "as": "income",    "audience": "public" },
+        "AmountSought":  { "as": "requested", "audience": "public" }
+      }
+    },
+    "RL_OBLIGATIONS_EXCESSIVE": {
+      "audience": "public", "reason_code": "EXCESSIVE_OBLIGATIONS_IN_RELATION_TO_INCOME",
+      "message": "Your existing obligations are high in relation to your income.",
+      "parameters": { "MaxDtiBps": { "as": "dti_ceiling", "audience": "internal" } }
+    },
+    "RL_INCOME_UNVERIFIABLE": {
+      "audience": "public", "reason_code": "UNABLE_TO_VERIFY_INCOME",
+      "message": "We could not verify your income."
+    },
+    "RL_RESIDENCE_TENURE": {
+      "audience": "public", "reason_code": "LENGTH_OF_RESIDENCE",
+      "message": "You have been at your current address {months} months.",
+      "facts":      { "ResideMonths":    { "as": "months",   "audience": "public"   } },
+      "parameters": { "MinResideMonths": { "as": "required", "audience": "internal" } }
+    },
+    "RL_RESIDENCE_TEMPORARY": {
+      "audience": "public", "reason_code": "TEMPORARY_RESIDENCE",
+      "message": "Your residence is temporary."
+    },
+    "RL_RESIDENCE_UNVERIFIABLE": {
+      "audience": "public", "reason_code": "UNABLE_TO_VERIFY_RESIDENCE",
+      "message": "We could not verify your residence."
+    },
+    "RL_NO_CREDIT_FILE": {
+      "audience": "public", "reason_code": "NO_CREDIT_FILE",
+      "message": "The consumer reporting agency had no credit file for you."
+    },
+    "RL_CREDIT_EXPERIENCE_LIMITED": {
+      "audience": "public", "reason_code": "LIMITED_CREDIT_EXPERIENCE",
+      "message": "Your credit history is shorter than we can lend against.",
+      "parameters": { "MinHistoryMonths": { "as": "required_history", "audience": "internal" } }
+    },
+    "RL_PERFORMANCE_WITH_US": {
+      "audience": "public", "reason_code": "POOR_CREDIT_PERFORMANCE_WITH_US",
+      "message": "Your payment history on your accounts with us.",
+      "parameters": {
+        "BehaviouralScore":     { "as": "behaviour_score", "audience": "internal" },
+        "BehaviouralScoreFloor":{ "as": "score_floor",     "audience": "internal" }
+      }
+    },
+    "RL_DELINQUENT_OTHERS": {
+      "audience": "public", "reason_code": "DELINQUENT_OBLIGATIONS_WITH_OTHERS",
+      "message": "Your report shows delinquent obligations with other creditors.",
+      "parameters": { "MaxDelinquencies": { "as": "tolerated", "audience": "internal" } }
+    },
+    "RL_COLLECTION_OR_JUDGMENT": {
+      "audience": "public", "reason_code": "COLLECTION_ACTION_OR_JUDGMENT",
+      "message": "Your report shows a collection action or judgment."
+    },
+    "RL_GARNISHMENT": {
+      "audience": "public", "reason_code": "GARNISHMENT_OR_ATTACHMENT",
+      "message": "Your report shows a garnishment or attachment."
+    },
+    "RL_FORECLOSURE": {
+      "audience": "public", "reason_code": "FORECLOSURE_OR_REPOSSESSION",
+      "message": "Your report shows a foreclosure or repossession."
+    },
+    "RL_BANKRUPTCY": {
+      "audience": "public", "reason_code": "BANKRUPTCY",
+      "message": "Your report shows a bankruptcy."
+    },
+    "RL_INQUIRIES_RECENT": {
+      "audience": "public", "reason_code": "NUMBER_OF_RECENT_INQUIRIES",
+      "message": "Your report shows recent inquiries.",
+      "parameters": { "MaxInquiries": { "as": "tolerated", "audience": "internal" } }
+    },
+    "RL_COLLATERAL_INSUFFICIENT": {
+      "audience": "public", "reason_code": "VALUE_OR_TYPE_OF_COLLATERAL_NOT_SUFFICIENT",
+      "message": "The collateral offered is not sufficient for this request.",
+      "parameters": { "MinLtvBps": { "as": "ltv_floor", "audience": "internal" } }
+    },
+    "RL_OTHER_INTERNAL_MODEL": {
+      "audience": "public", "reason_code": "OTHER_SEE_STATEMENT",
+      "message": "Your recent account activity with us.",
+      "parameters": {
+        "RiskTier":      { "as": "tier",       "audience": "internal" },
+        "RiskTierFloor": { "as": "tier_floor", "audience": "internal" }
+      }
+    }
+  }
+}
