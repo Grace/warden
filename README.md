@@ -177,7 +177,7 @@ is the right place for questions and design arguments.
 **Using this for something real?** I would like to hear about it — what you
 pointed it at, what broke, and what you needed that is not there.
 
-**hello@gracefulco.de**
+**grace@gracefulco.de**
 
 ## License
 
